@@ -1,4 +1,5 @@
 let activeDiv = null;
+
 export const setDiv = (newDiv) => {
   if (newDiv != activeDiv) {
     if (activeDiv) {
