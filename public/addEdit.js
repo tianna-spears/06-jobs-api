@@ -16,49 +16,56 @@ export const handleAddEdit = () => {
   const editCancel = document.getElementById("edit-cancel");
 
   addEditDiv.addEventListener("click", async (e) => {
-    if (inputEnabled && e.target.nodeName === "BUTTON") {
-      if (e.target === addingJob) {
-        enableInput(false);
+    if (!inputEnabled || e.target.nodeName !== "BUTTON") return;
 
-        let method = "POST";
-        let url = "/api/v1/jobs";
-        try {
-          const response = await fetch(url, {
-            method: method,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              company: company.value,
-              position: position.value,
-              status: status.value,
-            }),
-          });
+    if (e.target === addingJob) {
+      enableInput(false);
 
-          const data = await response.json();
-          if (response.status === 201) {
-            // 201 indicates a successful create
-            message.textContent = "The job entry was created.";
+      let method = "POST";
+      let url = "/api/v1/jobs";
 
-            company.value = "";
-            position.value = "";
-            status.value = "pending";
-
-            showJobs();
-          } else {
-            message.textContent = data.msg;
-          }
-        } catch (err) {
-          console.log(err);
-          message.textContent = "A communication error occurred.";
-        }
-
-        enableInput(true);
-      } else if (e.target === editCancel) {
-        message.textContent = "";
-        showJobs();
+      if (addingJob.textContent === "update") {
+        method = "PATCH";
+        url = `/api/v1/jobs/${addEditDiv.dataset.id}`;
       }
+
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            company: company.value,
+            position: position.value,
+            status: status.value,
+          }),
+        });
+
+        const data = await response.json();
+        if (response.status === 201 || response.status === 200) {
+          message.textContent =
+            response.status === 201
+              ? "The job entry was created."
+              : "The job entry was updated.";
+
+          company.value = "";
+          position.value = "";
+          status.value = "pending";
+          showJobs();
+        } else {
+          message.textContent = data.msg;
+        }
+      } catch (err) {
+        console.log(err);
+        message.textContent = "A communication error occurred.";
+      }
+
+      enableInput(true);
+    } else if (e.target === editCancel) {
+      message.textContent = "";
+      showJobs();
     }
   });
 };
@@ -95,64 +102,47 @@ export const showAddEdit = async (jobId) => {
 
         setDiv(addEditDiv);
       } else {
-        // might happen if the list has been updated since last display
-        message.textContent = "The jobs entry was not found";
+        message.textContent = "The job entry was not found";
         showJobs();
       }
     } catch (err) {
       console.log(err);
-      message.textContent = "A communications error has occurred.";
+      message.textContent = "A communication error has occurred.";
       showJobs();
     }
 
     enableInput(true);
   }
+};
 
-  if (e.target === addingJob) {
+document.addEventListener("click", async (e) => {
+  if (e.target.classList.contains("deleteButton")) {
+    const jobId = e.target.dataset.id;
+    if (!jobId) return;
+
     enableInput(false);
 
-    let method = "POST";
-    let url = "/api/v1/jobs";
-
-    if (addingJob.textContent === "update") {
-      method = "PATCH";
-      url = `/api/v1/jobs/${addEditDiv.dataset.id}`;
-    }
-
     try {
-      const response = await fetch(url, {
-        method: method,
+      const response = await fetch(`/api/v1/jobs/${jobId}`, {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          company: company.value,
-          position: position.value,
-          status: status.value,
-        }),
       });
 
-      const data = await response.json();
-      if (response.status === 200 || response.status === 201) {
-        if (response.status === 200) {
-          // a 200 is expected for a successful update
-          message.textContent = "The job entry was updated.";
-        } else {
-          // a 201 is expected for a successful create
-          message.textContent = "The job entry was created.";
-        }
-        company.value = "";
-        position.value = "";
-        status.value = "pending";
+      if (response.status === 200) {
+        message.textContent = "The job entry was deleted.";
         showJobs();
       } else {
-        message.textContent = data.msg;
+        const data = await response.json();
+        message.textContent = data.msg || "Failed to delete the job.";
       }
     } catch (err) {
       console.log(err);
-      message.textContent = "A communication error occurred.";
+      message.textContent = "A communication error occurred during deletion.";
     }
+
     enableInput(true);
   }
-};
+});
